@@ -1,9 +1,10 @@
 #ifndef SHARED_PTR_HEADER
 #define SHARED_PTR_HEADER
+#include <utility>
 
 class ControlBlockBase {
 public:
-    ControlBlockBase(); // TODO: implement the default constructor.
+    ControlBlockBase() : m_refCount(0) {}
 
     // dtor is virtual, so that we can call derived class's dtor from a ptr to this base class.
     virtual ~ControlBlockBase(); // TODO: implement the destructor.
@@ -17,21 +18,121 @@ public:
 
     long increment()
     {
-        // TODO: increment refcount by 1 and return result.
+        return ++m_refCount;
     }
 
     long decrement()
     {
-        // TODO: decrement refcount by 1 and return result.
+        return --m_refCount; // what if its already 0?
     }
 
     long refCount() const
     {
-        // TODO: just return the refcount.
+        return m_refCount;
     }
 
 private:
-    // TODO: add field(s) which both control block types need to have
+    long m_refCount;
+};
+
+template <typename T>
+
+class ControlBlock : public ControlBlockBase {
+
+    const T* ptr;
+
+    public:
+
+    ControlBlock(const T* ptr) : ptr(ptr) {}
+    ~ControlBlock() {
+        delete ptr;
+    }
+
+    void* managedAddress() override {
+        return ptr;
+    }
+
+};
+
+
+template <typename T>
+
+class SharedPtr {
+
+
+
+    T* strd_ptr;
+    ControlBlockBase* ctrl_blk;
+
+    void swap(SharedPtr<T>& other) {
+        std::swap(strd_ptr, other.strd_ptr);
+        std::swap(ctrl_blk, other.ctrl_blk);
+        return;
+    }
+
+
+    
+    public:
+    SharedPtr() : strd_ptr(nullptr), ctrl_blk(nullptr) {}
+
+    SharedPtr(const T* ptr) : strd_ptr(ptr), ctrl_blk(new ControlBlock<T>(ptr)) {
+        ctrl_blk->increment(); // 
+    }
+
+    SharedPtr(const SharedPtr<T>& lvalue) : strd_ptr(lvalue.strd_ptr), ctrl_blk(lvalue.ctrl_blk){
+        ctrl_blk->increment();
+
+    }
+
+    SharedPtr(SharedPtr<T>&& rvalue) : strd_ptr(rvalue.strd_ptr), ctrl_blk(rvalue.ctrl_blk) {
+        rvalue.ctrl_blk = nullptr;
+        rvalue.strd_ptr = nullptr;
+
+    }
+
+    SharedPtr<T>& operator=(SharedPtr lvalue) {
+
+        swap(lvalue);
+        return *this;
+        
+    }
+
+    SharedPtr<T>& operator=(SharedPtr&& rvalue) {
+        swap(rvalue);
+        return *this;
+    }
+
+    ~SharedPtr() {
+        ctrl_blk->decrement();
+        if (!ctrl_blk->refCount()) delete ctrl_blk; // delete the ctrl block of nobody has ownership
+    }
+
+    T& operator*() {return *strd_ptr;}
+    T* operator->() const {return strd_ptr;}
+
+    T* get() const {return strd_ptr;}
+    bool operator==(const SharedPtr<T>& other) const {
+        return strd_ptr == other.strd_ptr;
+    }
+    bool operator!=(const SharedPtr<T>& other) const {
+        return !(*this == other);
+    }
+
+    operator bool() const {
+        return (strd_ptr != nullptr);
+    }
+
+    void reset() {
+       swap(*this, SharedPtr<T>());
+    }
+
+    void reset(T* other) {
+        swap(*this, SharedPtr<T>(other));
+    }
+
+
+
+
 };
 
 #endif
