@@ -7,7 +7,7 @@ public:
     ControlBlockBase() : m_refCount(0) {}
 
     // dtor is virtual, so that we can call derived class's dtor from a ptr to this base class.
-    virtual ~ControlBlockBase(); // TODO: implement the destructor.
+    virtual ~ControlBlockBase() {}; // TODO: implement the destructor.
 
     // pure virtual function; must be overriden by derived classes
     virtual void* managedAddress() = 0;
@@ -39,18 +39,20 @@ template <typename T>
 
 class ControlBlock : public ControlBlockBase {
 
-    const T* ptr;
+     T*  ptr;
 
     public:
 
-    ControlBlock(const T* ptr) : ptr(ptr) {}
-    ~ControlBlock() {
+    ControlBlock(T* ptr) : ptr(ptr) {}
+
+    ~ControlBlock() override {
         delete ptr;
     }
 
     void* managedAddress() override {
         return ptr;
     }
+
 
 };
 
@@ -64,6 +66,8 @@ class SharedPtr {
     T* strd_ptr;
     ControlBlockBase* ctrl_blk;
 
+    public:
+
     void swap(SharedPtr<T>& other) {
         std::swap(strd_ptr, other.strd_ptr);
         std::swap(ctrl_blk, other.ctrl_blk);
@@ -72,10 +76,9 @@ class SharedPtr {
 
 
     
-    public:
     SharedPtr() : strd_ptr(nullptr), ctrl_blk(nullptr) {}
 
-    SharedPtr(const T* ptr) : strd_ptr(ptr), ctrl_blk(new ControlBlock<T>(ptr)) {
+    SharedPtr( T* ptr) : strd_ptr(ptr), ctrl_blk(new ControlBlock<T>(ptr)) {
         ctrl_blk->increment(); // 
     }
 
@@ -90,9 +93,10 @@ class SharedPtr {
 
     }
 
-    SharedPtr<T>& operator=(SharedPtr lvalue) {
+    SharedPtr<T>& operator=( const SharedPtr& lvalue) {
 
-        swap(lvalue);
+        auto tmp = lvalue;
+        swap(tmp);
         return *this;
         
     }
@@ -103,8 +107,10 @@ class SharedPtr {
     }
 
     ~SharedPtr() {
+        if (ctrl_blk){
         ctrl_blk->decrement();
         if (!ctrl_blk->refCount()) delete ctrl_blk; // delete the ctrl block of nobody has ownership
+        }
     }
 
     T& operator*() {return *strd_ptr;}
@@ -130,9 +136,17 @@ class SharedPtr {
         swap(*this, SharedPtr<T>(other));
     }
 
+    long useCount() {return ctrl_blk->refCount();}
+
 
 
 
 };
+
+
+template <typename T, typename... Args> 
+SharedPtr<T> makeSharedBasic(Args&&... args) {
+    return SharedPtr<T>(new T(std::forward<Args...>(args...)));
+}
 
 #endif
