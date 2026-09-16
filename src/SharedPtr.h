@@ -57,9 +57,28 @@ class ControlBlock : public ControlBlockBase {
 
 };
 
+template <typename T>
+class ControlBlockEmbedded : public ControlBlockBase {
+    T resource;
+ public:
+
+    template<typename... Args>
+    ControlBlockEmbedded(Args&&... args) : resource(std::forward<Args>(args)...) {}
+
+    ~ControlBlockEmbedded() override {}
+    void* managedAddress() override {return &resource;}
+
+
+
+};
 
 template <typename T>
+class SharedPtr;
 
+template <typename T, typename... Args> 
+SharedPtr<T> makeShared(Args&&... args);
+
+template <typename T>
 class SharedPtr {
 
 
@@ -67,13 +86,20 @@ class SharedPtr {
     T* strd_ptr;
     ControlBlockBase* ctrl_blk;
 
+    explicit SharedPtr(T* ptr, ControlBlockBase* ctrl_blk_base) : strd_ptr(ptr), ctrl_blk(ctrl_blk_base) {}
+
     public:
+    
+    template <typename U,typename... Args>  friend SharedPtr<U> makeShared(Args&&... args);
 
     void swap(SharedPtr<T>& other) {
         std::swap(strd_ptr, other.strd_ptr);
         std::swap(ctrl_blk, other.ctrl_blk);
         return;
     }
+
+    
+    
 
 
     
@@ -145,9 +171,21 @@ class SharedPtr {
 };
 
 
+
+
 template <typename T, typename... Args> 
 SharedPtr<T> makeSharedBasic(Args&&... args) {
     return SharedPtr<T>(new T(std::forward<Args>(args)...));
 }
+
+
+template <typename T, typename... Args> 
+SharedPtr<T> makeShared(Args&&... args) {
+    auto* ctrl_blk_emb_ptr = new ControlBlockEmbedded<T>(std::forward<Args>(args)...);
+
+    return SharedPtr<T>(static_cast<T*>(ctrl_blk_emb_ptr->managedAddress()), ctrl_blk_emb_ptr);
+
+}
+
 
 #endif
