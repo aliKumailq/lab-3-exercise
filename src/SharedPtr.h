@@ -1,6 +1,7 @@
 #ifndef SHARED_PTR_HEADER
 #define SHARED_PTR_HEADER
 #include <utility>
+#include <iostream>
 
 class ControlBlockBase {
 public:
@@ -146,7 +147,7 @@ class SharedPtr {
 
 template <typename T, typename... Args> 
 SharedPtr<T> makeSharedBasic(Args&&... args) {
-    return SharedPtr<T>(new T(std::forward<Args...>(args...)));
+    return SharedPtr<T>(new T(std::forward<Args>(args)...));
 }
 
 #endif
